@@ -20,6 +20,15 @@ contract RewardSystemFuzzTest is Test {
         rewards.join();
     }
 
+    /// @dev Binds each price to the reward's name. Fails when RewardType gains a value, as a reminder to give
+    /// it a cost in rewardCost and a row here.
+    function test_RewardCostsArePinnedByName() public view {
+        assertEq(rewards.rewardCost(RewardSystem.RewardType.Vip), 100);
+        assertEq(rewards.rewardCost(RewardSystem.RewardType.Ticket), 50);
+        assertEq(rewards.rewardCost(RewardSystem.RewardType.Hoodie), 25);
+        assertEq(uint256(type(RewardSystem.RewardType).max), uint256(RewardSystem.RewardType.Hoodie));
+    }
+
     function testFuzz_TransferConservesTotal(uint128 aliceStart, uint128 bobStart, uint128 amount) public {
         aliceStart = uint128(bound(aliceStart, 1, type(uint64).max));
         bobStart = uint128(bound(bobStart, 1, type(uint64).max));
@@ -65,5 +74,33 @@ contract RewardSystemFuzzTest is Test {
         vm.prank(caller);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, caller));
         rewards.grantPoints(ALICE, amount);
+    }
+
+    function testFuzz_RevokeDeductsExactAmount(uint128 balance, uint128 amount) public {
+        balance = uint128(bound(balance, 1, type(uint128).max));
+        amount = uint128(bound(amount, 1, balance));
+        rewards.grantPoints(ALICE, balance);
+
+        rewards.revokePoints(ALICE, amount);
+
+        assertEq(rewards.pointsOf(ALICE), balance - amount);
+    }
+
+    function testFuzz_RevokeAboveBalanceReverts(uint128 balance, uint128 amount) public {
+        balance = uint128(bound(balance, 1, type(uint128).max - 1));
+        amount = uint128(bound(amount, uint256(balance) + 1, type(uint128).max));
+        rewards.grantPoints(ALICE, balance);
+
+        vm.expectRevert(abi.encodeWithSelector(RewardSystem.InsufficientPoints.selector, balance, amount));
+        rewards.revokePoints(ALICE, amount);
+    }
+
+    function testFuzz_OnlyOwnerCanRevoke(address caller) public {
+        vm.assume(caller != address(this));
+        rewards.grantPoints(ALICE, 10);
+
+        vm.prank(caller);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, caller));
+        rewards.revokePoints(ALICE, 1);
     }
 }

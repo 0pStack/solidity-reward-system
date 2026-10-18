@@ -8,7 +8,7 @@
 [![Last Commit](https://img.shields.io/github/last-commit/0pStack/solidity-reward-system)](https://github.com/0pStack/solidity-reward-system/commits/main)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-A membership and loyalty-points smart contract built with **Hardhat 3**. It is tested with Mocha + ethers v6 in TypeScript and with Solidity fuzz tests.
+A membership and loyalty-points smart contract built with **Hardhat 3**. It is tested with Mocha + ethers v6 in TypeScript and with Solidity fuzz and invariant tests.
 
 ## The contract
 
@@ -18,6 +18,7 @@ A membership and loyalty-points smart contract built with **Hardhat 3**. It is t
 | ---------------------------- | ------ | --------------------------------------------------------------------------------------------------------------- |
 | `join()`                     | anyone | Registers the caller as a member with 0 points.                                                                 |
 | `grantPoints(to, amount)`    | owner  | Adds `amount` points to member `to`. This is the only way points are created.                                   |
+| `revokePoints(from, amount)` | owner  | Removes up to the member's balance, e.g. to correct a mistaken grant. The member keeps their membership.        |
 | `transferPoints(to, amount)` | member | Moves points to another member.                                                                                 |
 | `redeem(reward)`             | member | Spends points on a reward and emits `RewardRedeemed` with a unique `redemptionId`.                              |
 | `pointsOf(account)`          | view   | Points held by `account`.                                                                                       |
@@ -35,14 +36,14 @@ The owner is set at deployment and should be a multisig in production. Failures 
 
 ### Off-chain fulfilment
 
-Listen for `RewardRedeemed` events from this contract's address only, and deduplicate on `redemptionId`. Act on an event only after enough confirmations for the chain you deploy on.
+Listen for `RewardRedeemed` events from this contract's address only. `redemptionId` is unique only within one deployment, so deduplicate on `(chain id, contract address, redemptionId)`. Act on an event only after enough confirmations for the chain you deploy on.
 
 ## Tech stack
 
 - **Solidity** `0.8.31` with **OpenZeppelin Contracts** v5
 - **Hardhat 3** with **TypeScript**
 - **Mocha + Chai** with `hardhat-ethers-chai-matchers`
-- **forge-std** for Solidity fuzz tests
+- **forge-std** for Solidity fuzz and invariant tests
 - **ethers.js v6**
 - **Hardhat Ignition** for deployment
 - **Prettier** (`prettier-plugin-solidity`) and **solhint**
@@ -55,7 +56,7 @@ Requires [Node.js](https://nodejs.org/) 20+.
 git clone https://github.com/0pStack/solidity-reward-system.git
 cd solidity-reward-system
 npm install
-npm test               # Solidity fuzz tests + Mocha tests
+npm test               # Solidity fuzz + invariant tests, then Mocha tests
 npm run coverage
 npm run lint           # solhint
 npm run format:check   # prettier
@@ -93,6 +94,7 @@ npx hardhat ignition deploy --network sepolia ignition/modules/RewardSystem.ts -
 ├── ignition/modules/RewardSystem.ts
 ├── test/RewardSystem.ts      # Mocha + ethers tests
 ├── test/RewardSystem.t.sol   # Solidity fuzz tests
+├── test/RewardSystem.invariant.t.sol  # invariant tests over random call sequences
 ├── .prettierrc.json / .solhint.json
 ├── hardhat.config.ts
 ├── tsconfig.json
