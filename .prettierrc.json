@@ -1,0 +1,14 @@
+{
+  "printWidth": 120,
+  "plugins": ["prettier-plugin-solidity"],
+  "overrides": [
+    {
+      "files": "*.sol",
+      "options": { "parser": "slang", "tabWidth": 4 }
+    },
+    {
+      "files": "test/**/*.ts",
+      "options": { "tabWidth": 4 }
+    }
+  ]
+}
