@@ -6,8 +6,12 @@ import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /// @title RewardSystem
 /// @notice Membership and loyalty points. The owner grants points; members transfer them or redeem them for rewards.
+/// @dev Trust model: the owner can create points and remove any member's unredeemed points at any time, so
+/// balances are only as trustworthy as the owner. Use a multisig as owner.
 contract RewardSystem is Ownable2Step {
     /// @notice Rewards that points can be redeemed for.
+    /// @dev Append new values only. Their numeric values appear in RewardRedeemed logs, so reordering or
+    /// inserting would change what existing logs mean.
     enum RewardType {
         Vip,
         Ticket,
@@ -45,8 +49,10 @@ contract RewardSystem is Ownable2Step {
 
     event MemberJoined(address indexed member);
     event PointsGranted(address indexed admin, address indexed member, uint256 amount);
+    event PointsRevoked(address indexed admin, address indexed member, uint256 amount);
     event PointsTransferred(address indexed from, address indexed to, uint256 amount);
-    /// @dev `redemptionId` is unique per redemption, so off-chain fulfilment can deduplicate on it.
+    /// @dev `redemptionId` is unique within this deployment; off-chain fulfilment should deduplicate on
+    /// (chain id, contract address, redemptionId).
     event RewardRedeemed(uint256 indexed redemptionId, address indexed member, RewardType indexed reward, uint256 cost);
 
     /// @param initialOwner Account allowed to grant points. Use a multisig in production.
@@ -71,6 +77,25 @@ contract RewardSystem is Ownable2Step {
 
         member.points += amount;
         emit PointsGranted(msg.sender, to, amount);
+    }
+
+    /// @notice Remove `amount` points from member `from`, e.g. to correct a mistaken grant.
+    /// @dev Only unredeemed points can be removed; if a mistaken grant was already transferred or redeemed,
+    /// the correction is partial and may affect a different member. Owner should be a multisig.
+    /// @param from Member losing the points; stays a member even at zero.
+    /// @param amount Points to remove; must be non-zero and at most the member's balance.
+    function revokePoints(address from, uint128 amount) external onlyOwner {
+        Member storage member = _members[from];
+        if (!member.exists) revert NotMember(from);
+        if (amount == 0) revert InvalidAmount();
+
+        uint128 balance = member.points;
+        if (balance < amount) revert InsufficientPoints(balance, amount);
+
+        unchecked {
+            member.points = balance - amount;
+        }
+        emit PointsRevoked(msg.sender, from, amount);
     }
 
     /// @notice Move `amount` of the caller's points to another member.
@@ -127,11 +152,13 @@ contract RewardSystem is Ownable2Step {
     }
 
     /// @notice Points needed to redeem `reward`.
+    /// @dev Matched by name, not enum position, so inserting or reordering RewardType values cannot misprice
+    /// existing rewards.
     function rewardCost(RewardType reward) public pure returns (uint128) {
         if (reward == RewardType.Vip) return VIP_COST;
         if (reward == RewardType.Ticket) return TICKET_COST;
         if (reward == RewardType.Hoodie) return HOODIE_COST;
-        // Unreachable for today's enum; makes a newly added RewardType fail loudly instead of costing HOODIE_COST.
+        // Unreachable for today's enum: a RewardType added without a cost reverts instead of being free or mispriced.
         revert UnknownReward(reward);
     }
 }

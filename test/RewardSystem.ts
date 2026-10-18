@@ -153,6 +153,64 @@ describe("RewardSystem", function () {
         });
     });
 
+    describe("revokePoints", function () {
+        it("should revert when a non-owner calls", async () => {
+            const { rewardSystem, admin, medlem1, medlem2 } = await networkHelpers.loadFixture(twoMembersFixture);
+
+            await rewardSystem.connect(admin).grantPoints(medlem1.address, 10);
+            await expect(rewardSystem.connect(medlem2).revokePoints(medlem1.address, 10))
+                .to.be.revertedWithCustomError(rewardSystem, "OwnableUnauthorizedAccount")
+                .withArgs(medlem2.address);
+        });
+
+        it("should revert NotMember when 'from' is not a member", async () => {
+            const { rewardSystem, admin, user } = await networkHelpers.loadFixture(twoMembersFixture);
+
+            await expect(rewardSystem.connect(admin).revokePoints(user.address, 1))
+                .to.be.revertedWithCustomError(rewardSystem, "NotMember")
+                .withArgs(user.address);
+        });
+
+        it("should revert InvalidAmount when amount is 0", async () => {
+            const { rewardSystem, admin, medlem1 } = await networkHelpers.loadFixture(twoMembersFixture);
+
+            await expect(rewardSystem.connect(admin).revokePoints(medlem1.address, 0)).to.be.revertedWithCustomError(
+                rewardSystem,
+                "InvalidAmount",
+            );
+        });
+
+        it("should revert when revoking more than the balance", async () => {
+            const { rewardSystem, admin, medlem1 } = await networkHelpers.loadFixture(twoMembersFixture);
+
+            await rewardSystem.connect(admin).grantPoints(medlem1.address, 10);
+            await expect(rewardSystem.connect(admin).revokePoints(medlem1.address, 11))
+                .to.be.revertedWithCustomError(rewardSystem, "InsufficientPoints")
+                .withArgs(10, 11);
+        });
+
+        it("should decrease points and emit PointsRevoked", async () => {
+            const { rewardSystem, admin, medlem1 } = await networkHelpers.loadFixture(twoMembersFixture);
+
+            await rewardSystem.connect(admin).grantPoints(medlem1.address, 40);
+            await expect(rewardSystem.connect(admin).revokePoints(medlem1.address, 15))
+                .to.emit(rewardSystem, "PointsRevoked")
+                .withArgs(admin.address, medlem1.address, 15);
+
+            expect(await rewardSystem.pointsOf(medlem1.address)).to.equal(25);
+        });
+
+        it("should allow revoking the exact full balance", async () => {
+            const { rewardSystem, admin, medlem1 } = await networkHelpers.loadFixture(twoMembersFixture);
+
+            await rewardSystem.connect(admin).grantPoints(medlem1.address, 40);
+            await rewardSystem.connect(admin).revokePoints(medlem1.address, 40);
+
+            expect(await rewardSystem.pointsOf(medlem1.address)).to.equal(0);
+            expect(await rewardSystem.isMember(medlem1.address)).to.equal(true);
+        });
+    });
+
     describe("transferPoints", function () {
         it("should revert NotMember when caller is not a member", async () => {
             const { rewardSystem, user, medlem1 } = await networkHelpers.loadFixture(twoMembersFixture);
@@ -338,10 +396,11 @@ describe("RewardSystem", function () {
         it("should not allow renouncing ownership", async () => {
             const { rewardSystem, admin } = await networkHelpers.loadFixture(deployRewardSystemFixture);
 
-            await expect(rewardSystem.connect(admin).renounceOwnership()).to.be.revertedWithCustomError(
-                rewardSystem,
-                "RenounceDisabled",
-            );
+            // renounceOwnership is `pure`, so ethers would only eth_call it; send a real transaction instead.
+            const data = rewardSystem.interface.encodeFunctionData("renounceOwnership");
+            await expect(
+                admin.sendTransaction({ to: await rewardSystem.getAddress(), data }),
+            ).to.be.revertedWithCustomError(rewardSystem, "RenounceDisabled");
             expect(await rewardSystem.owner()).to.equal(admin.address);
         });
     });
