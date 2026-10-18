@@ -4,8 +4,8 @@
 ![TypeScript](https://img.shields.io/badge/-TypeScript-3178C6?logo=typescript&logoColor=white)
 ![Ethereum](https://img.shields.io/badge/-Ethereum-3C3C3D?logo=ethereum&logoColor=white)
 ![Hardhat](https://img.shields.io/badge/-Hardhat-FFF100?logo=hardhat&logoColor=black)
-[![Stars](https://img.shields.io/github/stars/0pStack/solidity-practice-hardhat?style=flat)](https://github.com/0pStack/solidity-practice-hardhat/stargazers)
-[![Last Commit](https://img.shields.io/github/last-commit/0pStack/solidity-practice-hardhat)](https://github.com/0pStack/solidity-practice-hardhat/commits/main)
+[![Stars](https://img.shields.io/github/stars/0pStack/solidity-reward-system?style=flat)](https://github.com/0pStack/solidity-reward-system/stargazers)
+[![Last Commit](https://img.shields.io/github/last-commit/0pStack/solidity-reward-system)](https://github.com/0pStack/solidity-reward-system/commits/main)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 A membership and loyalty-points smart contract built with **Hardhat 3**, tested with **Mocha + ethers v6** in TypeScript.
@@ -46,8 +46,8 @@ The deployer becomes the immutable `admin`. Failures use custom errors (`NotAdmi
 Requires [Node.js](https://nodejs.org/) 20+.
 
 ```shell
-git clone https://github.com/0pStack/solidity-practice-hardhat.git
-cd solidity-practice-hardhat
+git clone https://github.com/0pStack/solidity-reward-system.git
+cd solidity-reward-system
 npm install
 npx hardhat compile
 npx hardhat test
